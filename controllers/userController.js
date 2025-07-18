@@ -1,16 +1,24 @@
 const Users = require("../models/userModel");
+const customError = require("../utils/customError");
 const generateToken = require("../utils/generateToken");
+const {
+  validateUserCredentials,
+  validateUserInfo,
+} = require("../utils/validate");
 
 //@desc register user
 //route POST/api/users/auth/login
 //access public
 const loginUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { error, value } = validateUserCredentials(req.body);
 
-    if (!email) {
-      throw customError(401, "Email required");
+    if (error) {
+      throw customError(400, error.message);
     }
+
+    // user email and password from validated body
+    const { email, password } = value;
 
     const user = await Users.findOne({ email, provider: "credentials" });
 
@@ -34,11 +42,11 @@ const loginUser = async (req, res, next) => {
 //access public
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, provider } = req.body;
-
-    if (!name || !email) {
-      throw customError(401, "Fill up the required field");
+    const { error, value } = validateUserInfo(req.body);
+    if (error) {
+      throw customError(400, error.message);
     }
+    const { name, email, password, provider } = value;
 
     const user = await Users.findOne({ email });
 
