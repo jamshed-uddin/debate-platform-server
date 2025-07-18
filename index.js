@@ -5,6 +5,7 @@ const connectdb = require("./config/connectdb");
 const userRoutes = require("./routes/userRoutes");
 const debateRoutes = require("./routes/debateRoutes");
 const participantRoutes = require("./routes/participantRoutes");
+const argumentRoutes = require("./routes/argumentRoutes");
 const { notFound, errorHandler } = require("./middlewares/errorMiddlewares");
 const app = express();
 dotenv.config({ quiet: true });
@@ -31,6 +32,7 @@ const initServer = async () => {
     app.use("/api/users", userRoutes);
     app.use("/api/debates", debateRoutes);
     app.use("/api/participants", participantRoutes);
+    app.use("/api/arguments", argumentRoutes);
 
     app.use(notFound);
     app.use(errorHandler);
