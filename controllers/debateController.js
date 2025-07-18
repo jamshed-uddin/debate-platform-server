@@ -1,6 +1,7 @@
 const Debates = require("../models/debateModel");
 const customError = require("../utils/customError");
 const { validateDebateInfo } = require("../utils/validate");
+const mongoose = require("mongoose");
 
 //@desc create debate
 //route POST/api/debates
@@ -67,6 +68,15 @@ const getDebates = async (req, res, next) => {
 
 const getDebate = async (req, res, next) => {
   try {
+    const debateId = req.params.id;
+
+    const debate = await Debates.findById(debateId);
+
+    if (!debate) {
+      throw customError(404, "Debate not found");
+    }
+
+    res.status(200).send(debate);
   } catch (error) {
     next(error);
   }
@@ -77,8 +87,25 @@ const getDebate = async (req, res, next) => {
 //access private
 const updateDebate = async (req, res, next) => {
   try {
+    const userId = req.user?._id;
+    const debateId = req.params.id;
+    const { description, duration } = req.body;
+    const debate = await Debates.findById(debateId);
+    if (!debate) {
+      throw customError(404, "Debate not found");
+    }
+
+    if (debate?.userId !== userId?.toString()) {
+      throw customError(400, "Unauthorized action");
+    }
+
+    debate.description = description;
+    debate.duration = duration;
+    await debate.save();
+
+    res.status(200).send({ message: "Debate updated", _id: debate?._id });
   } catch (error) {
-    next(customError);
+    next(error);
   }
 };
 
@@ -86,9 +113,33 @@ const updateDebate = async (req, res, next) => {
 //route DELETE/api/debates/:id
 //access private
 const deleteDebate = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
+    const userId = req.user?._id;
+    const debateId = req.params.id;
+    const debate = await Debates.findById(debateId).session(session);
+    if (!debate) {
+      throw customError(404, "Debate not found");
+    }
+
+    if (debate?.userId !== userId?.toString()) {
+      throw customError(400, "Unauthorized action");
+    }
+
+    // todo: delete arguments
+    // todo: delete participants
+    // todo: delete votes
+
+    await Debates.findByIdAndDelete(debateId);
+
+    await session.commitTransaction();
+    res.status(200).send({ message: "Debate deleted" });
   } catch (error) {
+    await session.abortTransaction();
     next(error);
+  } finally {
+    session.endSession();
   }
 };
 
