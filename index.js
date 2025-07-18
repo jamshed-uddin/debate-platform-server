@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const connectdb = require("./config/connectdb");
 const userRoutes = require("./routes/userRoutes");
+const debateRoutes = require("./routes/debateRoutes");
 const { notFound, errorHandler } = require("./middlewares/errorMiddlewares");
 const app = express();
 dotenv.config({ quiet: true });
@@ -27,6 +28,7 @@ const initServer = async () => {
 
     // api endpoints
     app.use("/api/users", userRoutes);
+    app.use("/api/debates", debateRoutes);
 
     app.use(notFound);
     app.use(errorHandler);
