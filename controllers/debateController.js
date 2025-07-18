@@ -1,4 +1,7 @@
 const Debates = require("../models/debateModel");
+const Arguments = require("../models/argumentModel");
+const Participants = require("../models/participantModel");
+const Votes = require("../models/voteModel");
 const customError = require("../utils/customError");
 const { validateDebateInfo } = require("../utils/validate");
 const mongoose = require("mongoose");
@@ -127,11 +130,15 @@ const deleteDebate = async (req, res, next) => {
       throw customError(400, "Unauthorized action");
     }
 
-    // todo: delete arguments
-    // todo: delete participants
-    // todo: delete votes
+    // delete arguments associated with the debate
+    await Arguments.deleteMany({ debateId }).session(session);
+    // delete participants associated with the debate
+    await Participants.deleteMany({ debateId }).session(session);
+    // delete votes associated with the debate
+    await Votes.deleteMany({ debateId }).session(session);
 
-    await Debates.findByIdAndDelete(debateId);
+    // delete the debate itself
+    await Debates.findByIdAndDelete(debateId).session(session);
 
     await session.commitTransaction();
     res.status(200).send({ message: "Debate deleted" });
