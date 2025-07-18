@@ -1,7 +1,5 @@
 const joi = require("joi");
 
-const joi = require("joi");
-
 const validateUserInfo = (userInfo) => {
   const schema = joi.object({
     name: joi.string().required().messages({
