@@ -5,9 +5,13 @@ const {
   editArgument,
   deleteArgument,
 } = require("../controllers/argumentController");
+const { verifyAuth } = require("../middlewares/authMiddleware");
 const router = express.Router();
 
-router.route("/").get(getArguments).post(createArgument);
-router.route("/:id").put(editArgument).delete(deleteArgument);
+router.route("/").get(getArguments).post(verifyAuth, createArgument);
+router
+  .route("/:id")
+  .put(verifyAuth, editArgument)
+  .delete(verifyAuth, deleteArgument);
 
 module.exports = router;

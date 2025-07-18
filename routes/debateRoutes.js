@@ -6,10 +6,14 @@ const {
   getDebate,
   deleteDebate,
 } = require("../controllers/debateController");
+const { verifyAuth } = require("../middlewares/authMiddleware");
 const router = express.Router();
 
-router.route("/").post(createDebate).get(getDebates);
+router.route("/").post(verifyAuth, createDebate).get(getDebates);
 router.get("/:id", getDebate);
-router.route("/:id").put(updateDebate).delete(deleteDebate);
+router
+  .route("/:id")
+  .put(verifyAuth, updateDebate)
+  .delete(verifyAuth, deleteDebate);
 
 module.exports = router;
