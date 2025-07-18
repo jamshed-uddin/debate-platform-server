@@ -20,3 +20,9 @@ const participantSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+const Participant =
+  mongoose.models?.Participant ||
+  mongoose.model("Participant", participantSchema);
+
+module.exports = Participant;
