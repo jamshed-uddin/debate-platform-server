@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose");
 const Arguments = require("../models/argumentModel");
 const customError = require("../utils/customError");
+const { isTimeExpired } = require("../utils/timeUtilities");
 
 //@desc create argument
 //route POST/api/arguments
@@ -8,12 +9,12 @@ const customError = require("../utils/customError");
 const createArgument = async (req, res, next) => {
   try {
     const userId = req.user?._id;
-    const { debateId, content } = req.body;
+    const { debateId, content, side } = req.body;
     if (!debateId || !content) {
       throw customError(400, "Debate id and argument content is required");
     }
 
-    await Arguments.create({ userId, debateId, content });
+    await Arguments.create({ userId, debateId, content, side });
 
     res.status(200).send({ message: "Argument posted" });
   } catch (error) {
@@ -152,14 +153,6 @@ const getArguments = async (req, res, next) => {
   }
 };
 
-const isEditDeleteTimeEnded = (createdAt) => {
-  const now = Date.now();
-  const createdAtMili = new Date(createdAt).getTime();
-  const fiveMinToMili = 5 * 60 * 1000;
-
-  return createdAtMili + fiveMinToMili < now;
-};
-
 //@desc edit argument
 //route PUT/api/arguments/:id
 //access private
@@ -178,7 +171,7 @@ const editArgument = async (req, res, next) => {
       userId: userId,
     });
 
-    if (isEditDeleteTimeEnded(argument?.createdAt)) {
+    if (isTimeExpired(argument?.createdAt, 5 * 60 * 1000)) {
       throw customError(400, "Edit time ended");
     }
 
@@ -205,7 +198,7 @@ const deleteArgument = async (req, res, next) => {
       userId: userId,
     });
 
-    if (isEditDeleteTimeEnded(argument?.createdAt)) {
+    if (isTimeExpired(argument?.createdAt, 5 * 60 * 1000)) {
       throw customError(400, "Edit time ended");
     }
 

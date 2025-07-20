@@ -5,6 +5,7 @@ const Votes = require("../models/voteModel");
 const customError = require("../utils/customError");
 const { validateDebateInfo } = require("../utils/validate");
 const mongoose = require("mongoose");
+const { isTimeExpired } = require("../utils/timeUtilities");
 
 //@desc create debate
 //route POST/api/debates
@@ -31,7 +32,7 @@ const createDebate = async (req, res, next) => {
 
 const getDebates = async (req, res, next) => {
   try {
-    const { status, category } = req.query;
+    const { status, category, userId, search } = req.query;
     if (
       (status && typeof status !== "string") ||
       (category && typeof category !== "string")
@@ -57,6 +58,12 @@ const getDebates = async (req, res, next) => {
     if (category) {
       filter.category = category;
     }
+    if (userId) {
+      filter.userId = userId;
+    }
+    if (search) {
+      filter.title = { $regex: search, $options: "i" };
+    }
 
     const debates = await Debates.find(filter);
     res.status(200).send(debates);
@@ -76,13 +83,60 @@ const getDebate = async (req, res, next) => {
     const debate = await Debates.findById(debateId).lean();
     const participants = await Participants.find({
       debateId: debate._id,
-    }).select("userId");
+    });
 
     if (!debate) {
       throw customError(404, "Debate not found");
     }
 
-    res.status(200).send({ ...debate, participants });
+    const response = { ...debate, participants };
+
+    if (isTimeExpired(debate?.createdAt, debate?.duration)) {
+      const winnerAggr = await Arguments.aggregate([
+        {
+          $match: { debateId: new mongoose.Types.ObjectId(debate._id) },
+        },
+        {
+          $lookup: {
+            from: "votes",
+            localField: "_id",
+            foreignField: "argumentId",
+            as: "votes",
+          },
+        },
+        {
+          $project: {
+            side: 1,
+            voteCount: { $size: "$votes" },
+          },
+        },
+        {
+          $group: {
+            _id: "$side",
+            totalVotes: {
+              $sum: "$voteCount",
+            },
+          },
+        },
+        {
+          $sort: {
+            totalVotes: -1,
+          },
+        },
+      ]);
+
+      if (winnerAggr.length === 0) {
+        response.winnerStatus = "Draw";
+      } else if (winnerAggr.length === 1 && winnerAggr[0]?.totalVotes > 0) {
+        response.winnerStatus = winnerAggr[0]._id;
+      } else if (winnerAggr[0]?.totalVotes === winnerAggr[1]?.totalVotes) {
+        response.winnerStatus = "Draw";
+      } else {
+        response.winnerStatus = winnerAggr[0]._id;
+      }
+    }
+
+    res.status(200).send(response);
   } catch (error) {
     next(error);
   }
@@ -95,13 +149,15 @@ const updateDebate = async (req, res, next) => {
   try {
     const userId = req.user?._id;
     const debateId = req.params.id;
+    console.log(req.body);
+    console.log(userId.toString());
     const { description, duration } = req.body;
     const debate = await Debates.findById(debateId);
     if (!debate) {
       throw customError(404, "Debate not found");
     }
 
-    if (debate?.userId !== userId?.toString()) {
+    if (debate?.userId.toString() !== userId?.toString()) {
       throw customError(400, "Unauthorized action");
     }
 
@@ -109,7 +165,10 @@ const updateDebate = async (req, res, next) => {
     debate.duration = duration;
     await debate.save();
 
-    res.status(200).send({ message: "Debate updated", _id: debate?._id });
+    res.status(200).send({
+      message: "Debate updated",
+      _id: debate?._id,
+    });
   } catch (error) {
     next(error);
   }
@@ -129,7 +188,7 @@ const deleteDebate = async (req, res, next) => {
       throw customError(404, "Debate not found");
     }
 
-    if (debate?.userId !== userId?.toString()) {
+    if (debate?.userId.toString() !== userId?.toString()) {
       throw customError(400, "Unauthorized action");
     }
 
@@ -146,6 +205,7 @@ const deleteDebate = async (req, res, next) => {
     await session.commitTransaction();
     res.status(200).send({ message: "Debate deleted" });
   } catch (error) {
+    console.log(error);
     await session.abortTransaction();
     next(error);
   } finally {

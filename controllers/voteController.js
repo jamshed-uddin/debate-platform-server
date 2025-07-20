@@ -1,6 +1,91 @@
 const Votes = require("../models/voteModel");
 const customError = require("../utils/customError");
 
+//@desc get scoreboard
+//route POST/api/votes/scoreboard
+//access public
+const getScoreBoard = async (req, res, next) => {
+  try {
+    const { filter } = req.query;
+
+    let dateFilter = {};
+    const now = new Date();
+
+    if (filter === "weekly") {
+      const oneWeekAgo = new Date(now);
+      oneWeekAgo.setDate(now.getDate() - 7);
+      dateFilter = { createdAt: { $gte: oneWeekAgo } };
+    } else if (filter === "monthly") {
+      const oneMonthAgo = new Date(now);
+      oneMonthAgo.setMonth(now.getMonth() - 1);
+      dateFilter = { createdAt: { $gte: oneMonthAgo } };
+    }
+
+    const scoreboard = await Votes.aggregate([
+      { $match: filter ? dateFilter : {} },
+
+      {
+        $group: {
+          _id: "$argumentId",
+          voteCount: { $sum: 1 },
+        },
+      },
+
+      {
+        $lookup: {
+          from: "arguments",
+          localField: "_id",
+          foreignField: "_id",
+          as: "argument",
+        },
+      },
+      { $unwind: "$argument" },
+
+      {
+        $group: {
+          _id: "$argument.userId",
+          totalVotes: { $sum: "$voteCount" },
+          debateIds: { $addToSet: "$argument.debateId" },
+        },
+      },
+
+      {
+        $addFields: {
+          totalDebates: { $size: "$debateIds" },
+        },
+      },
+
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+
+      {
+        $project: {
+          _id: 0,
+          userId: "$user._id",
+          name: "$user.name",
+          totalVotes: 1,
+          totalDebates: 1,
+        },
+      },
+
+      {
+        $sort: { totalVotes: -1 },
+      },
+    ]);
+
+    res.status(200).json(scoreboard);
+  } catch (error) {
+    next(error);
+  }
+};
+
 //@desc add vote
 //route PUT/api/votes
 //access private
@@ -38,4 +123,4 @@ const deleteVote = async (req, res, next) => {
   }
 };
 
-module.exports = { addVote, deleteVote };
+module.exports = { addVote, deleteVote, getScoreBoard };

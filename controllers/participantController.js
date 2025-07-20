@@ -1,6 +1,7 @@
 const Participants = require("../models/participantModel");
 const Debates = require("../models/debateModel");
 const customError = require("../utils/customError");
+const { isTimeExpired } = require("../utils/timeUtilities");
 
 //@desc add participant
 //route POST/api/participants
@@ -15,6 +16,10 @@ const addParticipant = async (req, res, next) => {
     const debate = await Debates.findById(debateId);
     if (!debate) {
       throw customError(404, "Debate not found");
+    }
+
+    if (isTimeExpired(debate?.createdAt, debate?.duration)) {
+      throw customError(400, "Debate has ended");
     }
 
     const alreadyParticipated = await Participants.findOne({
@@ -59,7 +64,6 @@ const getParticipants = async (req, res, next) => {
 //@desc remove/delete participants (leave debate)
 //route DELETE/api/participants/:debateId
 //access public
-
 const deleteParticipants = async (req, res, next) => {
   try {
     const debateId = req.params.debateId;

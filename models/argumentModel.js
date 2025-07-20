@@ -17,6 +17,11 @@ const argumentSchema = new mongoose.Schema(
       required: [true, "Content is required"],
       trim: true,
     },
+    side: {
+      type: String,
+      enum: ["Support", "Oppose"],
+      required: [true, "Side is required"],
+    },
   },
   { timestamps: true }
 );
