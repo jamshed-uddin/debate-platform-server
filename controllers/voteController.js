@@ -12,7 +12,10 @@ const addVote = async (req, res, next) => {
     if (!argumentId || !debateId) {
       throw customError(400, "Argument id and debate id is required");
     }
-
+    const alreadyVoted = await Votes.findOne({ argumentId, userId });
+    if (alreadyVoted) {
+      throw customError(400, "Already voted");
+    }
     await Votes.create({ userId, argumentId, debateId });
     res.status(200).send({ message: "Voted" });
   } catch (error) {
@@ -21,14 +24,14 @@ const addVote = async (req, res, next) => {
 };
 
 //@desc remove vote
-//route DELETE/api/votes
+//route DELETE/api/votes/:argumentId
 //access private
 const deleteVote = async (req, res, next) => {
   try {
-    const voteId = req.params.id;
+    const argumentId = req.params.argumentId;
     const userId = req.user?._id;
 
-    await Votes.deleteOne({ _id: voteId, userId });
+    await Votes.deleteOne({ argumentId, userId });
     res.status(200).send({ message: "Vote removed" });
   } catch (error) {
     next(error);

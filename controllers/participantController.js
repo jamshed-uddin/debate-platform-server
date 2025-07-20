@@ -41,7 +41,14 @@ const getParticipants = async (req, res, next) => {
   try {
     const debateId = req.query.debateId;
 
-    const participants = await Participants.find({ debateId });
+    if (!debateId) {
+      throw customError(400, "Debate id is required");
+    }
+
+    const participants = await Participants.find({ debateId }).populate(
+      "userId",
+      "-password"
+    );
 
     res.status(200).send(participants);
   } catch (error) {
@@ -50,15 +57,15 @@ const getParticipants = async (req, res, next) => {
 };
 
 //@desc remove/delete participants (leave debate)
-//route GET/api/participants
+//route DELETE/api/participants/:debateId
 //access public
 
 const deleteParticipants = async (req, res, next) => {
   try {
-    const participantId = req.params.id;
+    const debateId = req.params.debateId;
     const userId = req.user?._id;
 
-    await Participants.deleteOne({ _id: participantId, userId });
+    await Participants.deleteOne({ debateId, userId });
 
     res.status(200).send({ message: "Left debate" });
   } catch (error) {

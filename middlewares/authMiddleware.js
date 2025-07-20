@@ -21,7 +21,9 @@ const verifyAuth = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.SECRET);
 
-    const user = await Users.findById(decoded._id).select("-password").lean();
+    const user = await Users.findOne({ email: decoded.email })
+      .select("-password")
+      .lean();
 
     if (!user) {
       throw customError(
@@ -37,6 +39,7 @@ const verifyAuth = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };

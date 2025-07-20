@@ -73,13 +73,16 @@ const getDebate = async (req, res, next) => {
   try {
     const debateId = req.params.id;
 
-    const debate = await Debates.findById(debateId);
+    const debate = await Debates.findById(debateId).lean();
+    const participants = await Participants.find({
+      debateId: debate._id,
+    }).select("userId");
 
     if (!debate) {
       throw customError(404, "Debate not found");
     }
 
-    res.status(200).send(debate);
+    res.status(200).send({ ...debate, participants });
   } catch (error) {
     next(error);
   }

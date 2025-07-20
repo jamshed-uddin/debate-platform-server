@@ -9,6 +9,6 @@ const router = express.Router();
 
 router.get("/", getParticipants); //params - debateId
 router.post("/", verifyAuth, addParticipant);
-router.delete("/:id", verifyAuth, deleteParticipants); //id here is id of participant entry in db not user id
+router.delete("/:debateId", verifyAuth, deleteParticipants); //id here is id of participant entry in db not user id
 
 module.exports = router;

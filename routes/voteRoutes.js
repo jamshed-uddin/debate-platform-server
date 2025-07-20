@@ -5,5 +5,5 @@ const router = express.Router();
 
 router.use(verifyAuth);
 router.post("/", addVote);
-router.delete("/:id", deleteVote);
+router.delete("/:argumentId", deleteVote);
 module.exports = router;

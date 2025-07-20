@@ -11,6 +11,7 @@ const {
 //access public
 const loginUser = async (req, res, next) => {
   try {
+    console.log("hit");
     const { error, value } = validateUserCredentials(req.body);
 
     if (error) {
@@ -23,12 +24,11 @@ const loginUser = async (req, res, next) => {
     const user = await Users.findOne({ email, provider: "credentials" });
 
     if (user && (await user.matchPassword(password))) {
-      const { password: passcode, ...userData } = user._doc;
-      const response = {
-        ...userData,
-        token: generateToken({ email: userData.email }),
-      };
-      res.status(200).send(response);
+      const responseObject = user?.toObject();
+      delete responseObject.password;
+      responseObject.token = generateToken({ email: responseObject.email });
+
+      res.status(200).send(responseObject);
     } else {
       throw customError(400, "Invalid credentials");
     }
@@ -48,20 +48,18 @@ const registerUser = async (req, res, next) => {
     }
     const { name, email, password, provider } = value;
 
-    const user = await Users.findOne({ email });
+    const user = await Users.findOne({ email }).lean();
 
     if (user) {
       throw customError(309, "This email already in use");
     }
     const createdUser = await Users.create({ name, email, password, provider });
-    const { password: passcode, ...userData } = createdUser;
 
-    const response = {
-      ...userData,
-      token: generateToken({ email: userData.email }),
-    };
+    const responseObject = createdUser?.toObject();
+    delete responseObject.password;
+    responseObject.token = generateToken({ email: responseObject.email });
 
-    res.status(201).send(response);
+    res.status(201).send(responseObject);
   } catch (error) {
     next(error);
   }

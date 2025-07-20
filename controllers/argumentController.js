@@ -1,3 +1,4 @@
+const { default: mongoose } = require("mongoose");
 const Arguments = require("../models/argumentModel");
 const customError = require("../utils/customError");
 
@@ -28,33 +29,76 @@ const getArguments = async (req, res, next) => {
   try {
     const { debateId, sortBy } = req.query;
 
+    if (!debateId) {
+      throw customError(400, "Debate id is required");
+    }
+
     const stages = [
       // getting arguments of debate
+
       {
         $match: {
-          debateId,
+          debateId: new mongoose.Types.ObjectId(debateId),
         },
       },
       //   getting votes of each argument
       {
         $lookup: {
           from: "votes",
-          localField: "$_id",
-          foreignField: "$argumentId",
+          localField: "_id",
+          foreignField: "argumentId",
           as: "votes",
         },
       },
       // getting userinfo of argument creator. getting it from participants because we can get side field
+      //  using let , pipeline part to match multiple field. a user can have multiple participant entry. so just using localField, foreignField return document for every entry
       {
         $lookup: {
           from: "participants",
-          localField: "userId",
-          foreignField: "$userId",
+          let: { userId: "$userId", debateId: "$debateId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$userId", "$$userId"] },
+                    { $eq: ["$debateId", "$$debateId"] },
+                  ],
+                },
+              },
+            },
+          ],
           as: "user",
         },
       },
       //   flattening the user which was an array
       { $unwind: "$user" },
+      // getting user from users collection
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "userinfo",
+        },
+      },
+      // flattening the userinfo array. lookup stage returns array even if it's one document
+      { $unwind: "$userinfo" },
+      // getting name from userinfo and setting it to userName field
+      {
+        $addFields: {
+          userName: {
+            $getField: {
+              field: "name",
+              input: "$userinfo",
+            },
+          },
+        },
+      },
+      // removing userinfo after getting user name
+      {
+        $project: { userinfo: 0 },
+      },
 
       //  overriding the votes field and mapping thru each vote and only adding voter's id to the array. helpful in UI to determine user voted or not
       {
@@ -63,9 +107,18 @@ const getArguments = async (req, res, next) => {
             $map: {
               input: "$votes",
               as: "vote",
-              in: "$$vote.userId",
+              in: {
+                $getField: {
+                  field: "userId",
+                  input: "$$vote",
+                },
+              },
             },
           },
+        },
+      },
+      {
+        $addFields: {
           //   getting count of vote in each argument. helps sorting by vote count
           voteCount: { $size: "$votes" },
         },
@@ -94,6 +147,7 @@ const getArguments = async (req, res, next) => {
 
     res.status(200).send(arguments);
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };

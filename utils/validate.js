@@ -58,8 +58,8 @@ const validateDebateInfo = (debateInfo) => {
       "string.empty": "Category is required",
     }),
 
-    banner: joi.string().uri().allow("").messages({
-      "string.uri": "Banner must be a valid URL",
+    banner: joi.string().allow("").messages({
+      "string.empty": "Banner must be a valid URL",
     }),
 
     duration: joi.number().required().min(3600000).messages({
